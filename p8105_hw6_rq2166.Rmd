@@ -1,0 +1,132 @@
+---
+title: "p8105_hw6_rq2166"
+author: "Ruoyuan Qian"
+date: "11/18/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+birthweight = 
+  read_csv("data/birthweight.csv") %>% 
+    janitor::clean_names() %>% 
+    mutate(babysex = factor(babysex,level=c(1:2),
+                    labels = c("male","female")),
+           frace = factor(frace,level=c(1:4,8,9),
+                    labels = c("White","Black",
+                               "Asian","Puerto Rican",
+                               "Other","Unknown")),
+           malform = factor(malform,level=c(0:1),
+                    labels = c("absent","present")),
+           mrace = factor(mrace,level=c(1:4,8),
+                    labels = c("White","Black",
+                               "Asian","Puerto Rican",
+                               "Other")))
+
+list <-which(rowSums(is.na(birthweight)) > 0) 
+data_na <- birthweight[list,]
+
+
+```
+
+# Problem 2
+```{r}
+weather_df =
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"),
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+
+weather = 
+  weather_df %>% 
+  select(tmax,tmin)
+
+
+
+```
+
+```{r}
+#boot_straps = 
+#  weather %>% 
+#  modelr::bootstrap(n = 1000)
+
+#as_data_frame(boot_straps$strap[[1]])
+
+#a = lm( tmax ~ tmin , data = weather) 
+#summary(a)
+#tidy = broom::tidy(a)
+#b1 * b2
+#prod(tidy[[2]])
+
+# r2
+#broom::glance(a)[[1]]
+
+estimate = 
+  weather %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm( tmax ~ tmin , data = .x) ),
+    results = map(models, broom::tidy),
+    glance = map(models, broom::glance)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results,glance) %>% 
+  group_by(.id) %>% 
+  mutate( log_b = log(prod(estimate))) %>% 
+  ungroup(.id) %>% 
+  select(r.squared,log_b) %>% 
+  unique()
+
+```
+
+```{r}
+estimate %>% 
+  ggplot(aes(r.squared,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "R squared",
+         title = "Plot 1  Distribution of R squared")
+
+estimate %>% 
+  ggplot(aes(log_b,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "log(bea_1 * beta_2)",
+         title = "Plot 2  Distribution of log(bea_1 * beta_2)")
+```
+
+```{r}
+n = 
+estimate %>% 
+  pull(log_b) %>% 
+  length()
+
+order(estimate$r.squared)
+
+ci = 
+estimate %>% 
+  mutate(r.squared = sort(r.squared),
+         ci_95_r_squared = 
+           str_c(round(r.squared[0.025*n],2),
+                 "-",round(r.squared[0.975*n],2)),
+         log_b = sort(log_b),
+         ci_95_log_b =
+           str_c(round(log_b[0.025*n],2),
+                 "-",
+                 round(log_b[0.975*n],2))) %>% 
+  select(-r.squared,-log_b) %>% 
+    unique()
+
+ci
+```
+
