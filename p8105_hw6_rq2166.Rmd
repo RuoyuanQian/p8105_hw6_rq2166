@@ -9,6 +9,8 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
+library(modelr)
+library(mgcv)
 ```
 
 ```{r}
@@ -28,10 +30,77 @@ birthweight =
                                "Asian","Puerto Rican",
                                "Other")))
 
-list <-which(rowSums(is.na(birthweight)) > 0) 
-data_na <- birthweight[list,]
+anyNA(birthweight)
+
+```
+```{r}
+ fit = lm(bwt~.,birthweight)
+summary(fit)
+
+variable = 
+ lm(bwt~.,birthweight)%>% 
+  broom::tidy() %>% 
+  filter(p.value<0.05,
+         !(term == "(Intercept)"))
+  
+
+ mod = lm(bwt~babysex+bhead+blength+
+            delwt+gaweeks+mrace+parity+smoken,
+          birthweight)
+summary(mod)
+
+```
+```{r}
+
+birthweight %>% 
+  add_predictions(mod) %>% 
+  add_residuals(mod) %>% 
+  ggplot(aes(x = pred, y = resid)) + geom_point() + 
+  geom_smooth(aes(y = resid), color = "red")
+```
+```{r}
+ mod_1 = lm(bwt~blength + gaweeks,birthweight)
+ mod_2 = lm(bwt~bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex ,birthweight)
+
+```
+
+```{r}
+cv_df = 
+  crossv_mc(birthweight, 100) 
+
+cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
+
+cv_df =
+  cv_df %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
 
 
+```
+```{r}
+cv_df = 
+  cv_df %>% 
+  mutate(mod_diy  =
+           map(train,~lm(bwt~babysex+bhead+blength+delwt+gaweeks+mrace+parity+smoken,data = .x)),
+         mod_1  = 
+           map(train, ~lm(bwt~blength + gaweeks, data = .x)),
+         mod_2  = 
+           map(train, ~lm(bwt~bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex ,data = .x))) %>% 
+  mutate(rmse_diy = map2_dbl(mod_diy, test, ~rmse(model = .x, data = .y)),
+         rmse_1 = map2_dbl(mod_1, test, ~rmse(model = .x, data = .y)),
+         rmse_2 = map2_dbl(mod_2, test, ~rmse(model = .x, data = .y)))
+```
+```{r}
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
 # Problem 2
@@ -117,15 +186,20 @@ ci =
 estimate %>% 
   mutate(r.squared = sort(r.squared),
          ci_95_r_squared = 
-           str_c(round(r.squared[0.025*n],2),
-                 "-",round(r.squared[0.975*n],2)),
+           str_c(round(r.squared[0.025*n],4),
+                 "-",round(r.squared[0.975*n],4)),
          log_b = sort(log_b),
          ci_95_log_b =
-           str_c(round(log_b[0.025*n],2),
+           str_c(round(log_b[0.025*n],4),
                  "-",
-                 round(log_b[0.975*n],2))) %>% 
+                 round(log_b[0.975*n],4))) %>% 
   select(-r.squared,-log_b) %>% 
-    unique()
+    unique() %>% 
+  pivot_longer(ci_95_r_squared:
+               ci_95_log_b,
+               names_prefix = "ci_95_",
+               names_to = "variable",
+               values_to = "CI")
 
 ci
 ```
