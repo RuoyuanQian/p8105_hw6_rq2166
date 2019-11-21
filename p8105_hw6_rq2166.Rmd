@@ -55,8 +55,8 @@ summary(mod)
 birthweight %>% 
   add_predictions(mod) %>% 
   add_residuals(mod) %>% 
-  ggplot(aes(x = pred, y = resid)) + geom_point() + 
-  geom_smooth(aes(y = resid), color = "red")
+  ggplot(aes(x = pred, y = resid)) + geom_point(alpha = .3,color = "blue") + 
+  geom_smooth(aes(y = resid), color = "red",method = "lm")
 ```
 ```{r}
  mod_1 = lm(bwt~blength + gaweeks,birthweight)
@@ -180,7 +180,6 @@ estimate %>%
   pull(log_b) %>% 
   length()
 
-order(estimate$r.squared)
 
 ci = 
 estimate %>% 
@@ -199,7 +198,7 @@ estimate %>%
                ci_95_log_b,
                names_prefix = "ci_95_",
                names_to = "variable",
-               values_to = "CI")
+               values_to = "CI") 
 
 ci
 ```
