@@ -53,7 +53,7 @@ summary(mod)
 
 ```
 
-First of all, I put all variables into the regression, and select variables with p-value smaller than 0.05. Finally, built a new model with selected variables as the final model.
+First of all, I put all variables into the regression, and select 8 variables with p-value smaller than 0.05. Finally, built a new model with selected variables as the final model.
 
 ```{r}
 
@@ -62,12 +62,16 @@ birthweight %>%
   add_residuals(mod) %>% 
   ggplot(aes(x = pred, y = resid)) + geom_point(alpha = .3,color = "blue") + 
   geom_smooth(aes(y = resid), color = "red",method = "lm")+
+  geom_line(aes(y = 0),color = "grey",linetype = "dashed")+
   labs(x = "Fitted value",
        y = "Residuals",
        title = "Plot 1   Scatter plot showing distribution of residuals"
        )+
    theme(plot.title = element_text(hjust = 0.5))
 ```
+
+According to Plot 1, the residuals are bounce around zero with constant variance. The grey line is y = 0, the red line is the regression line of the residuals.
+
 ```{r}
  mod_1 = lm(bwt~blength + gaweeks,birthweight)
  mod_2 = lm(bwt~bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex ,birthweight)
@@ -118,7 +122,7 @@ cv_df %>%
     names_to = "model", 
     values_to = "rmse",
     names_prefix = "rmse_") %>% 
-  mutate(model = fct_inorder(model)) %>% 
+  mutate(model = fct_reorder(model,rmse)) %>% 
   ggplot(aes(x = model, y = rmse)) + 
   geom_violin()+
   labs(x = "Model type",
