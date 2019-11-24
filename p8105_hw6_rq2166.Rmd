@@ -12,7 +12,9 @@ library(dplyr)
 library(modelr)
 library(mgcv)
 ```
+# Problem 1
 
+Tidy data
 ```{r}
 birthweight = 
   read_csv("data/birthweight.csv") %>% 
@@ -50,13 +52,21 @@ variable =
 summary(mod)
 
 ```
+
+First of all, I put all variables into the regression, and select variables with p-value smaller than 0.05. Finally, built a new model with selected variables as the final model.
+
 ```{r}
 
 birthweight %>% 
   add_predictions(mod) %>% 
   add_residuals(mod) %>% 
   ggplot(aes(x = pred, y = resid)) + geom_point(alpha = .3,color = "blue") + 
-  geom_smooth(aes(y = resid), color = "red",method = "lm")
+  geom_smooth(aes(y = resid), color = "red",method = "lm")+
+  labs(x = "Fitted value",
+       y = "Residuals",
+       title = "Plot 1   Scatter plot showing distribution of residuals"
+       )+
+   theme(plot.title = element_text(hjust = 0.5))
 ```
 ```{r}
  mod_1 = lm(bwt~blength + gaweeks,birthweight)
@@ -67,8 +77,6 @@ birthweight %>%
 ```{r}
 cv_df = 
   crossv_mc(birthweight, 100) 
-
-cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
 
 cv_df =
   cv_df %>% 
@@ -82,14 +90,25 @@ cv_df =
 cv_df = 
   cv_df %>% 
   mutate(mod_diy  =
-           map(train,~lm(bwt~babysex+bhead+blength+delwt+gaweeks+mrace+parity+smoken,data = .x)),
+           map(train,~lm(bwt~babysex+bhead+blength+
+                             delwt+gaweeks+mrace+
+                             parity+smoken,
+               data = .x)),
          mod_1  = 
-           map(train, ~lm(bwt~blength + gaweeks, data = .x)),
+           map(train, ~lm(bwt~blength+gaweeks, 
+               data = .x)),
          mod_2  = 
-           map(train, ~lm(bwt~bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex ,data = .x))) %>% 
-  mutate(rmse_diy = map2_dbl(mod_diy, test, ~rmse(model = .x, data = .y)),
-         rmse_1 = map2_dbl(mod_1, test, ~rmse(model = .x, data = .y)),
-         rmse_2 = map2_dbl(mod_2, test, ~rmse(model = .x, data = .y)))
+           map(train, ~lm(bwt~bhead+blength+babysex+
+                              bhead*blength+bhead*babysex+
+                              blength*babysex+
+                              bhead*blength*babysex,
+                          data = .x))) %>% 
+  mutate(rmse_diy = map2_dbl(mod_diy,test,
+                             ~rmse(model = .x, data = .y)),
+         rmse_1 = map2_dbl(mod_1,test, 
+                             ~rmse(model = .x, data = .y)),
+         rmse_2 = map2_dbl(mod_2, test, 
+                             ~rmse(model = .x, data = .y)))
 ```
 ```{r}
 cv_df %>% 
@@ -100,8 +119,15 @@ cv_df %>%
     values_to = "rmse",
     names_prefix = "rmse_") %>% 
   mutate(model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin()+
+  labs(x = "Model type",
+       y = "RMSE",
+       title = "Plot 2   Violin plot showing distributions of RMSE across models")+
+   theme(plot.title = element_text(hjust = 0.5))
 ```
+
+According to Plot 2, model `diy` is the model built by myself, model 1 and 2 denote the models described by the `Problem 1`. Since the model with smaller `RMSE` is better than the model with larger `RMSE`, the model 1 is the worset and model built by myself is the best.
 
 # Problem 2
 ```{r}
@@ -126,20 +152,6 @@ weather =
 ```
 
 ```{r}
-#boot_straps = 
-#  weather %>% 
-#  modelr::bootstrap(n = 1000)
-
-#as_data_frame(boot_straps$strap[[1]])
-
-#a = lm( tmax ~ tmin , data = weather) 
-#summary(a)
-#tidy = broom::tidy(a)
-#b1 * b2
-#prod(tidy[[2]])
-
-# r2
-#broom::glance(a)[[1]]
 
 estimate = 
   weather %>% 
@@ -164,14 +176,14 @@ estimate %>%
  geom_histogram()+
  geom_line(stat = 'Density',size = 1)+
     labs(x = "R squared",
-         title = "Plot 1  Distribution of R squared")
+         title = "Plot 3  Distribution of R squared")
 
 estimate %>% 
   ggplot(aes(log_b,..density..))+
  geom_histogram()+
  geom_line(stat = 'Density',size = 1)+
     labs(x = "log(bea_1 * beta_2)",
-         title = "Plot 2  Distribution of log(bea_1 * beta_2)")
+         title = "Plot 4  Distribution of log(bea_1 * beta_2)")
 ```
 
 ```{r}
